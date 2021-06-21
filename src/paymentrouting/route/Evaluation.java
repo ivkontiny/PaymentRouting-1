@@ -308,7 +308,7 @@ public class Evaluation {
         int[] trees = {1,2,3,4,5,6,7,8,9,10};
         int[] transactions = {1, 5, 10, 25, 50, 100, 200};
         int[] redundant = {1, 5, 10, 20, 30, 50};
-        //run 
+        //run
 		for (int i = 0; i < transactions.length; i++) {
 			for (int j = 0; j < redundant.length; ++ j) {
 				//random split only for values of 1, 50, and 200 and exponential distributions
@@ -373,7 +373,6 @@ public class Evaluation {
 		m[index++] = new RoutePayment(new ClosestNeighbor(speedyMurmurs), trials, up, tran, redundant);
 		m[index++] = new RoutePayment(new SplitIfNecessary(speedyMurmurs), trials, up, tran, redundant);
 		m[index++] = new RoutePayment(new SplitClosest(speedyMurmurs), trials, up, tran, redundant);
-//		for (int i = 0; i < trees.length; i++){
 //			m[index++] =  new RoutePayment(new ClosestNeighbor(speedyMulti[i]),trials, up);
 //			m[index++] =  new RoutePayment(new SplitIfNecessary(speedyMulti[i]), trials, up);
 //			m[index++] =  new RoutePayment(new SplitClosest(speedyMulti[i]),trials, up);

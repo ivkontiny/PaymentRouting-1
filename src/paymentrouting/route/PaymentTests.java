@@ -39,7 +39,7 @@ public class PaymentTests {
 		DistanceFunction hop = new HopDistance();
 		DistanceFunction speedyMulti = new SpeedyMurmursMulti(2); //Interdimensional SpeedyMurmurs with two trees 
 		int trials = 1; // only one attempt
-		boolean up = false; //no dymanic updates of balances  
+		boolean up = false; //no dymanic updates of balances
         Metric[] m = new Metric[] {new RoutePayment(new ClosestNeighbor(hop),trials,up, 25, 10), //no splitting, HopDistance
 				                   new RoutePayment(new ClosestNeighbor(speedyMulti),trials,up, 25, 10), //no splitting, Interdimensional SpeedyMurmurs
 				                   new RoutePayment(new SplitIfNecessary(hop),trials,up, 25, 10), //split if necessary, HopDistance

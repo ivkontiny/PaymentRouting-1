@@ -35,12 +35,15 @@ public class RoutePayment extends Metric{
 	protected Random rand; //random seed 
 	protected boolean update; //are balances updated after payment or returned to original  
 	protected Transaction[] transactions; //list of transactions 
-	protected boolean log = false; //give detailed output in form of prints 
+	protected boolean log = false; //give detailed output in form of prints
 	protected PathSelection select; //splitting method  
 	protected CreditLinks edgeweights; //the balances of the channels
 	protected int tInterval = 1000; //default length of an epoch (if you want to see success over time: averages taken for this number of transactions)
 	protected int recompute_epoch; //do you recompute routing info periodically all tInterval? (if so, value < Integer.MAX_VALUE, which is default)
-	protected int trials; //number of attempts payment is tried (didn't evaluate more than 1) 
+	protected int trials; //number of attempts payment is tried (didn't evaluate more than 1)
+	protected int v = 25; //number of transactions
+	protected int u = 10; //number of redundant transactions
+	protected double eps = 1E-9; //epsilon, used to subtract a tiny amount of a number in order to compensate for double mistake
 	
 	//Metrics: 
 	protected Distribution hopDistribution; //number of hops of longest path (distribution)
@@ -57,8 +60,8 @@ public class RoutePayment extends Metric{
 	protected double[] succTime; //fraction of successful payments over time 
 	
 	
-	public RoutePayment(PathSelection ps, int trials, boolean up) {
-		this(ps,trials,up,Integer.MAX_VALUE); 
+	public RoutePayment(PathSelection ps, int trials, boolean up, int v, int u) {
+		this(ps,trials,up,Integer.MAX_VALUE, v, u);
 	}
 	
     /**
@@ -68,14 +71,17 @@ public class RoutePayment extends Metric{
      * @param up
      * @param epoch
      */
-	public RoutePayment(PathSelection ps, int trials, boolean up, int epoch) {
+	public RoutePayment(PathSelection ps, int trials, boolean up, int epoch, int v, int u) {
 		super("ROUTE_PAYMENT", new Parameter[]{new StringParameter("SELECTION", ps.getName()), new IntParameter("TRIALS", trials),
 				new BooleanParameter("UPDATE", up), new StringParameter("DISTANCE", ps.getDist().name), 
-				new IntParameter("EPOCH", epoch)});
+				new IntParameter("EPOCH", epoch), new IntParameter("TRANSACTIONS", v),
+				new IntParameter("REDUNDANT", u)});
 		this.trials = trials;		
 		this.update = up;
 		this.select = ps; 
-		this.recompute_epoch = epoch; 
+		this.recompute_epoch = epoch;
+		this.v = v;
+		this.u = u;
 	}
 	
 	/**
@@ -99,7 +105,6 @@ public class RoutePayment extends Metric{
 	 * @param ps
 	 * @param trials
 	 * @param up
-	 * @param epoch
 	 * @param params
 	 */
 	public RoutePayment(PathSelection ps, int trials, boolean up, Parameter[] params) {
@@ -149,126 +154,156 @@ public class RoutePayment extends Metric{
 			this.succTime = new double[len+1];
 		}
 		int slot = 0;
+		int successfulTransfers = 0;
 		
 		//iterate over transactions
 		for (int i = 0; i < this.transactions.length; i++) {
 			Transaction tr = this.transactions[i];
+			if (log) {
+				System.out.println(tr);
+			}
 			int src = tr.getSrc();
 			int dst = tr.getDst();
 			if (log) System.out.println("Src-dst " + src + "," + dst); 
 			double val = tr.getVal();
+			double atomicValue = val / v - eps; // value of one transaction
+			int successfulTransactions = 0;
 			boolean s = true; //successful, reset when failure encountered 
 	    	int h = 0; //hops
 	    	int x = 0; //messages
-	    	int maxhops = this.select.getDist().getTimeLock(src, dst); //maximal length of path 
+	    	int maxhops = this.select.getDist().getTimeLock(src, dst); //maximal length of path
 					    
 		//attempt at most trials times
 		    for (int t = 0; t < this.trials; t++) {
-		        //set initial set of current nodes and partial payment values to (src, totalVal) 
-		    	Vector<PartialPath> pps = new  Vector<PartialPath>();
-		    	//some routing algorithm split over multiple dimensions in the beginning (!= splitting during routing)
-		    	double[] splitVal = this.splitRealities(val, select.getDist().startR, rand);
-		    	for (int a = 0; a < select.getDist().startR; a++) {
-		    	     pps.add(new PartialPath(src, splitVal[a],new Vector<Integer>(),a));
-		        }
-		    	boolean[] excluded = new boolean[nodes.length];
-		    	
-		    	HashMap<Edge, Double> originalWeight = new HashMap<Edge,Double>(); //updated weights
-		
-		       //while current set of nodes is not empty 
-		    	while (!pps.isEmpty() && h < maxhops) {
+
+		    	HashMap<Edge, Double> originalWeight = new HashMap<Edge, Double>(); //updated weights
+//				boolean[] excludedForever = new boolean[nodes.length]; //used for blocking paths
+		    	for (int tran = 0; tran < v + u && successfulTransactions < v; ++ tran) {
+		    		s = true; //reinitialize that transaction is successful
 		    		if (log) {
-		    			System.out.println("Hop " + h + " with " + pps.size() + " links ");
-		    		}
-		    		Vector<PartialPath> next = new  Vector<PartialPath>();
-		            //iterate over set of current set of nodes 
-		            for (int j = 0; j < pps.size(); j++) {
-		            	PartialPath pp = pps.get(j);
-		            	int cur = pp.node;
-		            	//exclude nodes already on the path 
-		            	int pre = -1;
-		            	Vector<Integer> past = pp.pre;
-		            	if (past.size() > 0) {
-		            		pre = past.get(past.size()-1);
-		            	}
-		            	for (int l = 0; l < past.size(); l++) {
-		            		excluded[past.get(l)] = true;
-		            	}
-		            	
-		            	if (log) System.out.println("Routing at cur " + cur); 
-		                //getNextVals -> distribution of payment value over neighbors
-		                double[] partVals = this.select.getNextsVals(g, cur, dst, 
-		                		pre, excluded, this, pp.val, rand, pp.reality); 
-		                //reset excluded for future use 
-		                for (int l = 0; l < past.size(); l++) {
-		            		excluded[past.get(l)] = false;
-		            	}
-		               
-		                //add neighbors that are not the dest to new set of current nodes 
-		                if (partVals != null) {
-		                	past.add(cur);
-		                	int[] out = nodes[cur].getOutgoingEdges();
-		                	int zeros = 0; //delay -> stay at same node (happens as part of attacks, ignore if not in attack scenario) 
-		                	for (int k = 0; k < partVals.length; k++) {
-		                		if (partVals[k] > 0) {
-		                			x++;
-		                			//update vals 
-		                			Edge e = edgeweights.makeEdge(cur, out[k]);
-		    						double w = edgeweights.getWeight(e);
-		    						if (!originalWeight.containsKey(e)){
-		    							originalWeight.put(e, w); //store balance before this payment if later reset due to, e.g., failure
-		    						}
-		    						if (this.update && !originalAll.containsKey(e)) {
-		    							originalAll.put(e, w); //store original balance before this execution (for other runs with different parameters)
-		    						}
-		    						edgeweights.setWeight(cur,out[k],partVals[k]);//set to new balance 
-		                			if (out[k] != dst) {
-		                				next.add(new PartialPath(out[k], partVals[k], 
-		                						(Vector<Integer>)past.clone(),pp.reality)); //add new intermediary to path 
-		                			}
-		                			if (log) {
-		        		    			System.out.println("add link (" + cur + "," + out[k] + ") with val "+partVals[k]);
-		        		    		}
-		                		} else {
-		                			zeros++; //node performs an attack by waiting until it forwards (ignore if not in attack scenario) 
-		                		}
-		                	}
-		                	if (zeros == partVals.length) {
-		                		//stay at node itself 
-		                		next.add(new PartialPath(cur, pp.val, 
-                						(Vector<Integer>)past.clone(),pp.reality));
-		                	}
-		                } else {
-		                	//failure to find nodes to route to 
-		                	if (log) {
-		                		System.out.println("fail");
-		                		//throw new IllegalArgumentException();
-		                	}
-		                	s = false; 
-		                	//break;
-		                }
-		            }
-		            pps = this.merge(next); //merge paths: if the same payment arrived at a node via two paths: merge into one 
-		            h++; //increase hops 
-		            
-		            //reached maxhop count -> fail
-		            if (h == maxhops && !pps.isEmpty()) {
-		            	s = false; 
-		            }
-		    	}
-		    	
-		    	this.select.clear(); //clear any information related to finished payment 
-		    	if (!s) {
-		    		h--; 
-		    		//payments were not made -> return to previous weights
-		    		this.weightUpdate(edgeweights,originalWeight);
+		    			System.out.println("Transaction number " + tran);
+					}
+					//set initial set of current nodes and partial payment values to (src, totalVal)
+					Vector<PartialPath> pps = new Vector<PartialPath>();
+					//some routing algorithm split over multiple dimensions in the beginning (!= splitting during routing)
+					double[] splitVal = this.splitRealities(atomicValue, select.getDist().startR, rand);
+					for (int a = 0; a < select.getDist().startR; a++) {
+						pps.add(new PartialPath(src, splitVal[a], new Vector<Integer>(), a));
+					}
+					boolean[] excluded = new boolean[nodes.length];
+
+
+
+					//while current set of nodes is not empty
+					while (!pps.isEmpty() && h < maxhops) {
+						if (log) {
+							System.out.println("Hop " + h + " with " + pps.size() + " links ");
+						}
+						Vector<PartialPath> next = new Vector<PartialPath>();
+						//iterate over set of current set of nodes
+						for (int j = 0; j < pps.size(); j++) {
+							PartialPath pp = pps.get(j);
+							int cur = pp.node;
+							//exclude nodes already on the path
+							int pre = -1;
+							Vector<Integer> past = pp.pre;
+							if (past.size() > 0) {
+								pre = past.get(past.size() - 1);
+							}
+							for (int l = 0; l < past.size(); l++) {
+								excluded[past.get(l)] = true;
+							}
+
+							if (log) System.out.println("Routing at cur " + cur);
+							//getNextVals -> distribution of payment value over neighbors
+							double[] partVals = this.select.getNextsVals(g, cur, dst,
+									pre, excluded, this, pp.val, rand, pp.reality);
+							//reset excluded for future use
+							for (int l = 0; l < past.size(); l++) {
+								excluded[past.get(l)] = false;
+							}
+
+							//add neighbors that are not the dest to new set of current nodes
+							if (partVals != null) {
+								past.add(cur);
+								int[] out = nodes[cur].getOutgoingEdges();
+								int zeros = 0; //delay -> stay at same node (happens as part of attacks, ignore if not in attack scenario)
+								for (int k = 0; k < partVals.length; k++) {
+									if (partVals[k] > 0) {
+										x++;
+										//update vals
+										Edge e = edgeweights.makeEdge(cur, out[k]);
+										double w = edgeweights.getWeight(e);
+										if (!originalWeight.containsKey(e)) {
+											originalWeight.put(e, w); //store balance before this payment if later reset due to, e.g., failure
+										}
+										if (!originalAll.containsKey(e)) { //this.update in if
+											originalAll.put(e, w); //store original balance before this execution (for other runs with different parameters)
+										}
+										edgeweights.setWeight(cur, out[k], partVals[k]);//set to new balance
+										if (out[k] != dst) {
+											next.add(new PartialPath(out[k], partVals[k],
+													(Vector<Integer>) past.clone(), pp.reality)); //add new intermediary to path
+										}
+										if (log) {
+											System.out.println("add link (" + cur + "," + out[k] + ") with val " + partVals[k]);
+										}
+									} else {
+										zeros++; //node performs an attack by waiting until it forwards (ignore if not in attack scenario)
+									}
+								}
+								if (zeros == partVals.length) {
+									//stay at node itself
+									next.add(new PartialPath(cur, pp.val,
+											(Vector<Integer>) past.clone(), pp.reality));
+								}
+							} else {
+								//failure to find nodes to route to
+//								excludedForever[cur] = true;
+								if (log) {
+									System.out.println("fail");
+									//throw new IllegalArgumentException();
+								}
+								s = false;
+								//break;
+							}
+						}
+						pps = this.merge(next); //merge paths: if the same payment arrived at a node via two paths: merge into one
+						h++; //increase hops
+
+						//reached maxhop count -> fail
+						if (h == maxhops && !pps.isEmpty()) {
+							s = false;
+						}
+					}
+
+					this.select.clear(); //clear any information related to finished payment
+					if (!s) {
+						h--;
+						//transaction was not successfull -> return to previous weight
+						this.weightUpdate(edgeweights, originalWeight);
+						if (log) {
+							System.out.println("Failure of Transaction!");
+						}
+					} else {
+						++ successfulTransactions;
+					}
+					if (log) {
+						System.out.println("Original weight: " + originalWeight);
+					}
+					originalWeight.clear();
+				}
+		    	if (successfulTransactions < v) {
+		    		this.weightUpdate(edgeweights, originalAll);
 		    		if (log) {
-		    			System.out.println("Failure");
-		    		}
-		    	} else {
+		    			System.out.println("Failure of Transfer!");
+					}
+				}
+		    	else {
+		    		++ successfulTransfers;
 		    		if (!this.update) {
 		    			//return credit links to original state
-		    			this.weightUpdate(edgeweights,originalWeight);
+		    			this.weightUpdate(edgeweights,originalAll);
 		    		}
 		    		//update stats for this transaction 
 			    	pathSucc = inc(pathSucc, h);
@@ -296,6 +331,9 @@ public class RoutePayment extends Metric{
 		    if (this.recompute_epoch != Integer.MAX_VALUE && (i+1) % this.recompute_epoch == 0) {
 		    	this.select.initRoutingInfo(g, rand);
 		    }
+		}
+		if (log) {
+			System.out.println("Successful transfers: " + successfulTransfers);
 		}
 
 		//compute final stats
@@ -474,7 +512,7 @@ public class RoutePayment extends Metric{
 	 * @return
 	 */
 	public double getTotalCapacity(int s, int t) {
-		return this.edgeweights.getPot(s, t); 
+		return this.edgeweights.getTotalCapacity(s, t); 
 	}
     
 }

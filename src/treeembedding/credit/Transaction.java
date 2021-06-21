@@ -98,4 +98,8 @@ public class Transaction {
 		this.time = time;
 	}
 
+	public String toString() {
+		return src + "->" + dst + " " + val;
+	}
+
 }

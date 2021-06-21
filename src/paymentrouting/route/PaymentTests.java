@@ -25,8 +25,8 @@ public class PaymentTests {
 
 	public static void main(String[] args) {
 		Config.overwrite("SKIP_EXISTING_DATA_FOLDERS", ""+false);//run even if results already exist 
-		runSimpleTestSynthetic(); 
-	
+//		runSimpleTestSynthetic();
+		runSimpleTest();
 	}
 	
 	/**
@@ -40,16 +40,16 @@ public class PaymentTests {
 		DistanceFunction speedyMulti = new SpeedyMurmursMulti(2); //Interdimensional SpeedyMurmurs with two trees 
 		int trials = 1; // only one attempt
 		boolean up = false; //no dymanic updates of balances  
-        Metric[] m = new Metric[] {new RoutePayment(new ClosestNeighbor(hop),trials,up), //no splitting, HopDistance 
-				                   new RoutePayment(new ClosestNeighbor(speedyMulti),trials,up), //no splitting, Interdimensional SpeedyMurmurs 
-				                   new RoutePayment(new SplitIfNecessary(hop),trials,up), //split if necessary, HopDistance 
-				                   new RoutePayment(new SplitIfNecessary(speedyMulti),trials,up), //split if necessary, Interdimensional SpeedyMurmurs
-				                   new RoutePayment(new SplitClosest(hop),trials,up), //split by dist, HopDistance 
-				                   new RoutePayment(new SplitClosest(speedyMulti),trials,up), //split by dist, Interdimensional SpeedyMurmurs
-				                   new RoutePayment(new RandomSplit(hop),trials,up), //random splitting, HopDistance 
-				                   new RoutePayment(new RandomSplit(speedyMulti),trials,up) //random splitting, Interdimensional SpeedyMurmurs
+        Metric[] m = new Metric[] {new RoutePayment(new ClosestNeighbor(hop),trials,up, 25, 10), //no splitting, HopDistance
+				                   new RoutePayment(new ClosestNeighbor(speedyMulti),trials,up, 25, 10), //no splitting, Interdimensional SpeedyMurmurs
+				                   new RoutePayment(new SplitIfNecessary(hop),trials,up, 25, 10), //split if necessary, HopDistance
+				                   new RoutePayment(new SplitIfNecessary(speedyMulti),trials,up, 25, 10), //split if necessary, Interdimensional SpeedyMurmurs
+				                   new RoutePayment(new SplitClosest(hop),trials,up, 25, 10), //split by dist, HopDistance
+				                   new RoutePayment(new SplitClosest(speedyMulti),trials,up, 25, 10)//, //split by dist, Interdimensional SpeedyMurmurs
+//				                   new RoutePayment(new RandomSplit(hop),trials,up), //random splitting, HopDistance
+//				                   new RoutePayment(new RandomSplit(speedyMulti),trials,up) //random splitting, Interdimensional SpeedyMurmurs
                                    }; 
-		Series.generate(net, m, 3); 
+		Series.generate(net, m, 1);
 	}
 	
 	public static void runSimpleTestSynthetic() {
@@ -67,17 +67,17 @@ public class PaymentTests {
 		DistanceFunction speedyMulti = new SpeedyMurmursMulti(2); // Interdimensional SpeedyMurmurs with two trees
 		int trials = 1; // only one attempt
 		boolean up = false; // no dymanic updates of balances
-		Metric[] m = new Metric[] { new RoutePayment(new ClosestNeighbor(hop), trials, up), // no splitting, HopDistance
-				new RoutePayment(new ClosestNeighbor(speedyMulti), trials, up), // no splitting, Interdimensional
+		Metric[] m = new Metric[] { new RoutePayment(new ClosestNeighbor(hop), trials, up, 25, 10), // no splitting, HopDistance
+				new RoutePayment(new ClosestNeighbor(speedyMulti), trials, up, 25, 10), // no splitting, Interdimensional
 																				// SpeedyMurmurs
-				new RoutePayment(new SplitIfNecessary(hop), trials, up), // split if necessary, HopDistance
-				new RoutePayment(new SplitIfNecessary(speedyMulti), trials, up), // split if necessary, Interdimensional
+				new RoutePayment(new SplitIfNecessary(hop), trials, up, 25, 10), // split if necessary, HopDistance
+				new RoutePayment(new SplitIfNecessary(speedyMulti), trials, up, 25, 10), // split if necessary, Interdimensional
 																					// SpeedyMurmurs
-				new RoutePayment(new SplitClosest(hop), trials, up), // split by dist, HopDistance
-				new RoutePayment(new SplitClosest(speedyMulti), trials, up), // split by dist, Interdimensional
+				new RoutePayment(new SplitClosest(hop), trials, up, 25, 10), // split by dist, HopDistance
+				new RoutePayment(new SplitClosest(speedyMulti), trials, up, 25, 10), // split by dist, Interdimensional
 																				// SpeedyMurmurs
-				new RoutePayment(new RandomSplit(hop), trials, up), // random splitting, HopDistance
-				new RoutePayment(new RandomSplit(speedyMulti), trials, up) // random splitting, Interdimensional
+				new RoutePayment(new RandomSplit(hop), trials, up, 25, 10), // random splitting, HopDistance
+				new RoutePayment(new RandomSplit(speedyMulti), trials, up, 25, 10) // random splitting, Interdimensional
 																			// SpeedyMurmurs
 		};
 		//run 

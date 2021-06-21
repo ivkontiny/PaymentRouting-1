@@ -11,6 +11,8 @@ import gtna.networks.util.ReadableFile;
 import gtna.transformation.Transformation;
 import gtna.transformation.partition.LargestWeaklyConnectedComponent;
 import gtna.util.Config;
+import gtna.util.parameter.IntParameter;
+import gtna.util.parameter.Parameter;
 import paymentrouting.datasets.InitCapacities;
 import paymentrouting.datasets.InitCapacities.BalDist;
 import paymentrouting.datasets.TransactionStats;
@@ -26,7 +28,8 @@ public class Evaluation {
 	 */
 
 	public static void main(String[] args) {
-		attackEval();  
+//		attackEval();
+		evalValTrees();
 	}
 	
 	/**
@@ -67,21 +70,21 @@ public class Evaluation {
 		//execute simulation: colluding and non-colluding with the two splitting methods explored in the paper and the two delays defined above
 		int index = 0; 
 		for (int i = 0; i < 11; i++){
-			m[index++] =  new RoutePayment(new ColludingDropSplits(new SplitClosest(speedyMulti[0]), 0.1*i,maxdelay1),trials, up);
-			m[index++] =  new RoutePayment(new ColludingDropSplits(new SplitIfNecessary(speedyMulti[0]), 0.1*i,maxdelay1),trials, up);	
-			m[index++] =  new RoutePayment(new ColludingDropSplits(new SplitClosest(speedyMulti[0]), 0.1*i,maxdelay2),trials, up);
-			m[index++] =  new RoutePayment(new ColludingDropSplits(new SplitIfNecessary(speedyMulti[0]), 0.1*i,maxdelay2),trials, up);
-			m[index++] =  new RoutePayment(new NonColludingDropSplits(new SplitClosest(speedyMulti[0]), 0.1*i,maxdelay1),trials, up);
-			m[index++] =  new RoutePayment(new NonColludingDropSplits(new SplitIfNecessary(speedyMulti[0]), 0.1*i,maxdelay1),trials, up);	
-			m[index++] =  new RoutePayment(new NonColludingDropSplits(new SplitClosest(speedyMulti[0]), 0.1*i,maxdelay2),trials, up);
-			m[index++] =  new RoutePayment(new NonColludingDropSplits(new SplitIfNecessary(speedyMulti[0]), 0.1*i,maxdelay2),trials, up);
+			m[index++] =  new RoutePayment(new ColludingDropSplits(new SplitClosest(speedyMulti[0]), 0.1*i,maxdelay1),trials, up, 1, 1);
+			m[index++] =  new RoutePayment(new ColludingDropSplits(new SplitIfNecessary(speedyMulti[0]), 0.1*i,maxdelay1),trials, up, 1, 1);
+			m[index++] =  new RoutePayment(new ColludingDropSplits(new SplitClosest(speedyMulti[0]), 0.1*i,maxdelay2),trials, up, 1, 1);
+			m[index++] =  new RoutePayment(new ColludingDropSplits(new SplitIfNecessary(speedyMulti[0]), 0.1*i,maxdelay2),trials, up, 1, 1);
+			m[index++] =  new RoutePayment(new NonColludingDropSplits(new SplitClosest(speedyMulti[0]), 0.1*i,maxdelay1),trials, up, 1, 1);
+			m[index++] =  new RoutePayment(new NonColludingDropSplits(new SplitIfNecessary(speedyMulti[0]), 0.1*i,maxdelay1),trials, up, 1, 1);
+			m[index++] =  new RoutePayment(new NonColludingDropSplits(new SplitClosest(speedyMulti[0]), 0.1*i,maxdelay2),trials, up, 1, 1);
+			m[index++] =  new RoutePayment(new NonColludingDropSplits(new SplitIfNecessary(speedyMulti[0]), 0.1*i,maxdelay2),trials, up, 1, 1);
 		}	
 		m[index++] = new TransactionStats();
 		Series.generate(net, m, runs);
 	}
 	
 	/**
-	 * evaluation with dynamic adjustments of weights (general setup), Figure 6 in paper  
+	 * evaluation with dynamic adjustments of weights (general setup), Figure 8 in paper  
 	 */
 	public static void dynamicEval() {
 		//storage setup
@@ -135,14 +138,14 @@ public class Evaluation {
 		Metric[] m = new Metric[3+3*trees.length+1]; 
 		int index = 0; 
 		//HopDistance routing for three splitting protocols 
-		m[index++] =  new RoutePayment(new ClosestNeighbor(hop),trials, up);
-		m[index++] =  new RoutePayment(new SplitIfNecessary(hop), trials, up);	
-		m[index++] =  new RoutePayment(new SplitClosest(hop),trials, up); 
+		m[index++] =  new RoutePayment(new ClosestNeighbor(hop),trials, up, 1, 1);
+		m[index++] =  new RoutePayment(new SplitIfNecessary(hop), trials, up, 1, 1);
+		m[index++] =  new RoutePayment(new SplitClosest(hop),trials, up, 1, 1);
 		//Interdimensional SpeedyMurmurs with varying number of trees, routing for three splitting protocols 
 		for (int i = 0; i < trees.length; i++){
-			m[index++] =  new RoutePayment(new ClosestNeighbor(speedyMulti[i]),trials, up);
-			m[index++] =  new RoutePayment(new SplitIfNecessary(speedyMulti[i]), trials, up);	
-			m[index++] =  new RoutePayment(new SplitClosest(speedyMulti[i]),trials, up);
+			m[index++] =  new RoutePayment(new ClosestNeighbor(speedyMulti[i]),trials, up, 1, 1);
+			m[index++] =  new RoutePayment(new SplitIfNecessary(speedyMulti[i]), trials, up, 1, 1);
+			m[index++] =  new RoutePayment(new SplitClosest(speedyMulti[i]),trials, up, 1, 1);
 		}	
 		//compute stats about transaction set 
 		m[index++] = new TransactionStats();
@@ -204,9 +207,9 @@ public class Evaluation {
 		Metric[] m = new Metric[3*speedyMulti.length+1];  
 		int index = 0;
 		for (int i = 0; i < speedyMulti.length; i++){
-			m[index++] =  new RoutePayment(new ClosestNeighbor(speedyMulti[i]),trials, up);
-			m[index++] =  new RoutePayment(new SplitIfNecessary(speedyMulti[i]), trials, up);	
-			m[index++] =  new RoutePayment(new SplitClosest(speedyMulti[i]),trials, up);
+			m[index++] =  new RoutePayment(new ClosestNeighbor(speedyMulti[i]),trials, up, 1, 1);
+			m[index++] =  new RoutePayment(new SplitIfNecessary(speedyMulti[i]), trials, up, 1, 1);
+			m[index++] =  new RoutePayment(new SplitClosest(speedyMulti[i]),trials, up, 1, 1);
 		}
 		//stats about transactions 
 		m[index++] = new TransactionStats(); 
@@ -276,13 +279,13 @@ public class Evaluation {
 		boolean up = false; 
 		Metric[] m = new Metric[3+3*trees.length+2]; 
 		int index = 0;
-		m[index++] =  new RoutePayment(new ClosestNeighbor(hop),trials, up);
-		m[index++] =  new RoutePayment(new SplitIfNecessary(hop), trials, up);	
-		m[index++] =  new RoutePayment(new SplitClosest(hop),trials, up); 
+		m[index++] =  new RoutePayment(new ClosestNeighbor(hop),trials, up, 1, 1);
+		m[index++] =  new RoutePayment(new SplitIfNecessary(hop), trials, up, 1, 1);
+		m[index++] =  new RoutePayment(new SplitClosest(hop),trials, up, 1, 1);
 		for (int i = 0; i < trees.length; i++){
-			m[index++] =  new RoutePayment(new ClosestNeighbor(speedyMulti[i]),trials, up);
-			m[index++] =  new RoutePayment(new SplitIfNecessary(speedyMulti[i]), trials, up);	
-			m[index++] =  new RoutePayment(new SplitClosest(speedyMulti[i]),trials, up);
+			m[index++] =  new RoutePayment(new ClosestNeighbor(speedyMulti[i]),trials, up, 1, 1);
+			m[index++] =  new RoutePayment(new SplitIfNecessary(speedyMulti[i]), trials, up, 1, 1);
+			m[index++] =  new RoutePayment(new SplitClosest(speedyMulti[i]),trials, up, 1, 1);
 		}
 		//computer network and transaction statistics 
 		m[index++] = new DegreeDistribution(); 
@@ -302,26 +305,31 @@ public class Evaluation {
 		int trs = 10000; 
         String file  = "lightning/lngraph_2020_03_01__04_00.graph";
         //routing parameters 
-        int[] trees = {1,2,3,4,5,6,7,8,9,10}; 
+        int[] trees = {1,2,3,4,5,6,7,8,9,10};
+        int[] transactions = {1, 5, 10, 25, 50, 100, 200};
+        int[] redundant = {1, 5, 10, 20, 30, 50};
         //run 
-		for (int i = 0; i < vals.length; i++) {
-			     //random split only for values of 1, 50, and 200 and exponential distributions 
-                 if (vals[i] == 1 || vals[i] == 50 || vals[i] == 200) {
-                	 runLightningIntDim(200, vals[i], 20, 
-              				trs, trees, TransDist.EXP, BalDist.EXP, file); 
-                 } else {
-                	 runLightningIntDimNoRand(200, vals[i], 20, 
-               				trs, trees, TransDist.EXP, BalDist.EXP, file);  
-                 }
-			     if (vals[i] == 100) {
-            	 runLightningIntDimNoRand(200, vals[i], 20, 
-         				trs, trees, TransDist.EXP, BalDist.NORMAL, file); //transactions exponential, capacities normal 
-            	 runLightningIntDimNoRand(200, vals[i], 20, 
-          				trs, trees, TransDist.NORMAL, BalDist.EXP, file); //transactions normal, capacities exponential
-            	 runLightningIntDimNoRand(200, vals[i], 20, 
-           				trs, trees, TransDist.NORMAL, BalDist.NORMAL, file); //transactions normal, capacities normal
-			     }
-             
+		for (int i = 0; i < transactions.length; i++) {
+			for (int j = 0; j < redundant.length; ++ j) {
+				//random split only for values of 1, 50, and 200 and exponential distributions
+//                 if (vals[i] == 1 || vals[i] == 50 || vals[i] == 200) {
+//                	 runLightningIntDim(200, vals[i], 20,
+//              				trs, trees, TransDist.EXP, BalDist.EXP, file);
+//                 } else {
+//                	 runLightningIntDimNoRand(200, vals[i], 20,
+//               				trs, trees, TransDist.EXP, BalDist.EXP, file);
+//                 }
+				runLightningIntDimNoRand(200, vals[5], 20,
+						trs, trees, TransDist.EXP, BalDist.EXP, file, transactions[i], redundant[j]);
+//			     if (vals[i] == 100) {
+//            	 runLightningIntDimNoRand(200, vals[i], 20,
+//         				trs, trees, TransDist.EXP, BalDist.NORMAL, file); //transactions exponential, capacities normal
+//            	 runLightningIntDimNoRand(200, vals[i], 20,
+//          				trs, trees, TransDist.NORMAL, BalDist.EXP, file); //transactions normal, capacities exponential
+//            	 runLightningIntDimNoRand(200, vals[i], 20,
+//           				trs, trees, TransDist.NORMAL, BalDist.NORMAL, file); //transactions normal, capacities normal
+//			     }
+			}
 		}
 	}
 	
@@ -338,31 +346,38 @@ public class Evaluation {
 	 * @param file: lightning snapshot topology file 
 	 */
 	public static void runLightningIntDimNoRand(int initCap, int trval, int runs, 
-			int trs, int[] trees, TransDist td, BalDist bd, String file) {
+			int trs, int[] trees, TransDist td, BalDist bd, String file, int tran, int redundant) {
 		//generate network 
 		Transformation[] trans = new Transformation[] {
 				new InitCapacities(initCap,0.05*initCap, bd), 
 				new Transactions(trval, 0.1*trval, td, false, trs, false, true)};
-		Network net = new ReadableFile("LIGHTNING", "LIGHTNING", file, trans);
+		Network net = new ReadableFile("LIGHTNING", "LIGHTNING", file,
+				new Parameter[]{new IntParameter("TRANSACTIONS", tran),
+								new IntParameter("REDUNDANT", redundant)}, trans);
 		//generate distance functions 
 		DistanceFunction hop = new HopDistance();
-		DistanceFunction[] speedyMulti = new SpeedyMurmursMulti[trees.length];
-		for (int i = 0; i < speedyMulti.length; i++) {
-			speedyMulti[i] = new SpeedyMurmursMulti(trees[i]);
-		}
+		DistanceFunction speedyMurmurs = new SpeedyMurmursMulti(5);
+//		DistanceFunction[] speedyMulti = new SpeedyMurmursMulti[trees.length];
+//		for (int i = 0; i < speedyMulti.length; i++) {
+//			speedyMulti[i] = new SpeedyMurmursMulti(trees[i]);
+//		}
 		//instantiate routing 
 		int trials = 1;
 		boolean up = false; 
-		Metric[] m = new Metric[3+3*trees.length+1]; 
+//		Metric[] m = new Metric[3+3*trees.length+1];
+		Metric[] m = new Metric[7];
 		int index = 0;
-		m[index++] =  new RoutePayment(new ClosestNeighbor(hop),trials, up);
-		m[index++] =  new RoutePayment(new SplitIfNecessary(hop), trials, up);	
-		m[index++] =  new RoutePayment(new SplitClosest(hop),trials, up); 
-		for (int i = 0; i < trees.length; i++){
-			m[index++] =  new RoutePayment(new ClosestNeighbor(speedyMulti[i]),trials, up);
-			m[index++] =  new RoutePayment(new SplitIfNecessary(speedyMulti[i]), trials, up);	
-			m[index++] =  new RoutePayment(new SplitClosest(speedyMulti[i]),trials, up);
-		}	
+		m[index++] =  new RoutePayment(new ClosestNeighbor(hop),trials, up, tran, redundant);
+		m[index++] =  new RoutePayment(new SplitIfNecessary(hop), trials, up, tran, redundant);
+		m[index++] =  new RoutePayment(new SplitClosest(hop),trials, up, tran, redundant);
+		m[index++] = new RoutePayment(new ClosestNeighbor(speedyMurmurs), trials, up, tran, redundant);
+		m[index++] = new RoutePayment(new SplitIfNecessary(speedyMurmurs), trials, up, tran, redundant);
+		m[index++] = new RoutePayment(new SplitClosest(speedyMurmurs), trials, up, tran, redundant);
+//		for (int i = 0; i < trees.length; i++){
+//			m[index++] =  new RoutePayment(new ClosestNeighbor(speedyMulti[i]),trials, up);
+//			m[index++] =  new RoutePayment(new SplitIfNecessary(speedyMulti[i]), trials, up);
+//			m[index++] =  new RoutePayment(new SplitClosest(speedyMulti[i]),trials, up);
+//		}
 		//transaction stats 
 		m[index++] = new TransactionStats();
 		//run 
@@ -396,16 +411,16 @@ public class Evaluation {
 		boolean up = false; 
 		Metric[] m = new Metric[4+3*trees.length+3+1]; 
 		int index = 0;
-		m[index++] =  new RoutePayment(new ClosestNeighbor(hop),trials, up);
-		m[index++] =  new RoutePayment(new SplitIfNecessary(hop), trials, up);	
-		m[index++] =  new RoutePayment(new SplitClosest(hop),trials, up); 
-		m[index++] =  new RoutePayment(new RandomSplit(hop),trials, up); 
+		m[index++] =  new RoutePayment(new ClosestNeighbor(hop),trials, up, 1, 1);
+		m[index++] =  new RoutePayment(new SplitIfNecessary(hop), trials, up, 1, 1);
+		m[index++] =  new RoutePayment(new SplitClosest(hop),trials, up, 1, 1);
+		m[index++] =  new RoutePayment(new RandomSplit(hop),trials, up, 1, 1);
 		for (int i = 0; i < trees.length; i++){
-			m[index++] =  new RoutePayment(new ClosestNeighbor(speedyMulti[i]),trials, up);
-			m[index++] =  new RoutePayment(new SplitIfNecessary(speedyMulti[i]), trials, up);	
-			m[index++] =  new RoutePayment(new SplitClosest(speedyMulti[i]),trials, up);
+			m[index++] =  new RoutePayment(new ClosestNeighbor(speedyMulti[i]),trials, up, 1, 1);
+			m[index++] =  new RoutePayment(new SplitIfNecessary(speedyMulti[i]), trials, up, 1, 1);
+			m[index++] =  new RoutePayment(new SplitClosest(speedyMulti[i]),trials, up, 1, 1);
 			if (i < 3) {
-				m[index++] =  new RoutePayment(new RandomSplit(speedyMulti[i]),trials, up); 
+				m[index++] =  new RoutePayment(new RandomSplit(speedyMulti[i]),trials, up, 1, 1);
 			}
 		}
 		m[index++] = new TransactionStats();
@@ -438,10 +453,10 @@ public class Evaluation {
 		int trials = 1;
 		boolean up = false; 
 		Metric[] m = new Metric[1+trees.length+1]; 
-		m[0] = new RoutePayment(new RandomSplit(hop),trials, up);  
+		m[0] = new RoutePayment(new RandomSplit(hop),trials, up, 1, 1);
 		int index = 1;
 		for (int i = 0; i < trees.length; i++){
-			m[index++] =  new RoutePayment(new RandomSplit(speedyMulti[i]),trials, up); 
+			m[index++] =  new RoutePayment(new RandomSplit(speedyMulti[i]),trials, up, 1, 1);
 		}		 
 		m[index++] = new TransactionStats();
 		Series.generate(net, m, runs); 		
